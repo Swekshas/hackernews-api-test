@@ -1,11 +1,18 @@
 import pytest
 from core.api_client import APIClient
 
-client = APIClient()
+
+@pytest.fixture(scope="module")
+def api_client():
+    """Fixture for APIClient with setup and teardown."""
+    # Setup: Create client
+    client = APIClient()
+    yield client
+    # Teardown: Clean up
 
 @pytest.mark.regression
-def test_fetch_top_stories_ids():
-    response = client.get("/topstories.json")
+def test_fetch_top_stories_ids(api_client):
+    response = api_client.get("/topstories.json")
     assert response.status_code == 200
     stories = response.json()
     # Ensure list is not empty
@@ -29,10 +36,17 @@ def test_fetch_top_stories_ids():
     "/newstories.json",
     "/beststories.json",
 ])
-def test_fetch_story_collections(endpoint):
-    response = client.get(endpoint)
+def test_fetch_story_collections(endpoint, api_client):
+    response = api_client.get(endpoint)
     assert response.status_code == 200
     data = response.json()
+    # Ensure list is not empty
     assert isinstance(data, list)
     assert len(data) > 0
     assert all(isinstance(item, int) for item in data)
+
+    # API should not return null values
+    assert all(i is not None for i in data)
+
+    # Detect rate limiting or unexpected errors
+    assert response.headers.get("Content-Type", "").startswith("application/json")
